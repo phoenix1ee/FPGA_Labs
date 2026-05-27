@@ -1,0 +1,24 @@
+#-----------------------------------------------------------
+# Vivado v2025.2.1 (64-bit)
+# SW Build 6403652 on Thu Mar 19 19:48:24 GMT 2026
+# IP Build 6403511 on Thu Mar 19 12:41:45 MDT 2026
+# SharedData Build 6403650 on Thu Mar 19 14:02:13 MDT 2026
+# Start of session at: Fri May 22 10:41:35 2026
+# Process ID         : 12724
+# Current directory  : G:/Github2/FPGA_Labs/tutorial_project/tutorial_project.runs/impl_1
+# Command line       : vivado.exe -log top_level.vdi -applog -product Vivado -messageDb vivado.pb -mode batch -source top_level.tcl -notrace
+# Log file           : G:/Github2/FPGA_Labs/tutorial_project/tutorial_project.runs/impl_1/top_level.vdi
+# Journal file       : G:/Github2/FPGA_Labs/tutorial_project/tutorial_project.runs/impl_1\vivado.jou
+# Running On         : pldktpa
+# Platform           : Windows Server 2016 or Windows 10
+# Operating System   : 26200
+# Processor Detail   : AMD Ryzen 5 7600X 6-Core Processor             
+# CPU Frequency      : 4700 MHz
+# CPU Physical cores : 6
+# CPU Logical cores  : 12
+# Host memory        : 33515 MB
+# Swap memory        : 2147 MB
+# Total Virtual      : 35662 MB
+# Available Virtual  : 15499 MB
+#-----------------------------------------------------------
+source top_level.tcl -notrace
