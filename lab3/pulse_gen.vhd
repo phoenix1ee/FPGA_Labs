@@ -8,6 +8,8 @@
 -- Project Name: lab3
 ----------------------------------------------------------------------------------
 
+--this is the a pulse generation entity that generate the required pulse as specified by a count input
+
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 -- arithmetic functions with Signed or Unsigned values

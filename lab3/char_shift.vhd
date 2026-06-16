@@ -16,10 +16,8 @@ use work.all;
 -- arithmetic functions with Signed or Unsigned values
 use IEEE.NUMERIC_STD.ALL;
 
--- Uncomment the following library declaration if instantiating
--- any Xilinx leaf cells in this code.
---library UNISIM;
---use UNISIM.VComponents.all;
+-- This entity is to read the switch 0-3 value, shift the original bit 27 to 0 left and replace bit 3 to 0 with the input switch value
+-- and output a 32 bit signal for segment display
 
 entity char_shift is
     Port ( clock : in std_logic;

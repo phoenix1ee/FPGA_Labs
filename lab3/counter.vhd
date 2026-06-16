@@ -6,12 +6,13 @@
 -- Design Name: 
 -- Module Name: counter - Behavioral
 -- Project Name: lab3
---counter for setting anode
+
 ----------------------------------------------------------------------------------
+
+--counter for setting which anode to be on
 
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
--- arithmetic functions with Signed or Unsigned values
 use IEEE.NUMERIC_STD.ALL;
 
 entity counter is

@@ -13,14 +13,7 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 
--- Uncomment the following library declaration if using
--- arithmetic functions with Signed or Unsigned values
---use IEEE.NUMERIC_STD.ALL;
-
--- Uncomment the following library declaration if instantiating
--- any Xilinx leaf cells in this code.
---library UNISIM;
---use UNISIM.VComponents.all;
+-- this entity is the module to convert a 4 bit hex value to the cathode signal
 
 entity seg7_hex is
     Port ( digit : in STD_LOGIC_VECTOR (3 downto 0);
