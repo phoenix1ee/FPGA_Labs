@@ -127,27 +127,38 @@ begin
                                                      green=>rgb_to_vga(7 downto 4),
                                                      blue=>rgb_to_vga(3 downto 0));
     --debounce button
-    bttn_U: entity work.debounce_button port map(clk=>clock100mhz,reset=>reset,pb0=>BTNU,max_count=>debounce_latency,pulseOut=>pulse_bu);
-    bttn_D: entity work.debounce_button port map(clk=>clock100mhz,reset=>reset,pb0=>BTND,max_count=>debounce_latency,pulseOut=>pulse_bd);
-    bttn_L: entity work.debounce_button port map(clk=>clock100mhz,reset=>reset,pb0=>BTNL,max_count=>debounce_latency,pulseOut=>pulse_bl);
-    bttn_R: entity work.debounce_button port map(clk=>clock100mhz,reset=>reset,pb0=>BTNR,max_count=>debounce_latency,pulseOut=>pulse_br);
+--    bttn_U: entity work.debounce_button port map(clk=>clock100mhz,reset=>reset,pb0=>BTNU,max_count=>debounce_latency,pulseOut=>pulse_bu);
+--    bttn_D: entity work.debounce_button port map(clk=>clock100mhz,reset=>reset,pb0=>BTND,max_count=>debounce_latency,pulseOut=>pulse_bd);
+--    bttn_L: entity work.debounce_button port map(clk=>clock100mhz,reset=>reset,pb0=>BTNL,max_count=>debounce_latency,pulseOut=>pulse_bl);
+--    bttn_R: entity work.debounce_button port map(clk=>clock100mhz,reset=>reset,pb0=>BTNR,max_count=>debounce_latency,pulseOut=>pulse_br);
     
     --accelerometer control
-    v_up<=(unsigned(not r0x08)+ 1) when r0x08(7) = '1' else (others => '0');
-    v_down<=(unsigned(r0x08)) when r0x08(7) = '0' else (others => '0');
-    v_left<=(unsigned(not r0x09)) when r0x09(7) = '0' else (others => '0');
-    v_right<=(unsigned(not r0x09)+ 1) when r0x09(7) = '1' else (others => '0');
+--    v_up<=(unsigned(not r0x08)+ 1) when r0x08(7) = '1' else (others => '0');
+--    v_down<=(unsigned(r0x08)) when r0x08(7) = '0' else (others => '0');
+--    v_left<=(unsigned(not r0x09)) when r0x09(7) = '0' else (others => '0');
+--    v_right<=(unsigned(not r0x09)+ 1) when r0x09(7) = '1' else (others => '0');
     
-    tilt_front: entity work.accel_control_input port map(clk=>clock100mhz,reset=>reset,value=>v_up,max_count=>debounce_latency,pulseOut=>pulse_au);
-    tilt_back: entity work.accel_control_input port map(clk=>clock100mhz,reset=>reset,value=>v_down,max_count=>debounce_latency,pulseOut=>pulse_ad);
-    tilt_left: entity work.accel_control_input port map(clk=>clock100mhz,reset=>reset,value=>v_left,max_count=>debounce_latency,pulseOut=>pulse_al);
-    tilt_right: entity work.accel_control_input port map(clk=>clock100mhz,reset=>reset,value=>v_right,max_count=>debounce_latency,pulseOut=>pulse_ar);
+--    tilt_front: entity work.accel_control_input port map(clk=>clock100mhz,reset=>reset,value=>v_up,max_count=>debounce_latency,pulseOut=>pulse_au);
+--    tilt_back: entity work.accel_control_input port map(clk=>clock100mhz,reset=>reset,value=>v_down,max_count=>debounce_latency,pulseOut=>pulse_ad);
+--    tilt_left: entity work.accel_control_input port map(clk=>clock100mhz,reset=>reset,value=>v_left,max_count=>debounce_latency,pulseOut=>pulse_al);
+--    tilt_right: entity work.accel_control_input port map(clk=>clock100mhz,reset=>reset,value=>v_right,max_count=>debounce_latency,pulseOut=>pulse_ar);
     
-    pulse_u<=pulse_bu or pulse_au;
-    pulse_d<=pulse_bd or pulse_ad;
-    pulse_l<=pulse_bl or pulse_al;
-    pulse_r<=pulse_br or pulse_ar;
-    
+--    pulse_u<=pulse_bu or pulse_au;
+--    pulse_d<=pulse_bd or pulse_ad;
+--    pulse_l<=pulse_bl or pulse_al;
+--    pulse_r<=pulse_br or pulse_ar;
+
+    --consolidated control
+    motion_ctl: entity work.motion_consolidate port map(clk=>clock100mhz,reset=>reset,
+                                            pbu=>BTNU,pbd=>BTND,pbl=>BTNL,pbr=>BTNR,
+                                            rx8=>r0x08,rx9=>r0x09,
+                                            max_count=>debounce_latency,
+                                            pulse_u_out=>pulse_u,
+                                            pulse_d_out=>pulse_d,
+                                            pulse_l_out=>pulse_l,
+                                            pulse_r_out=>pulse_r);
+
+
 --    --naviagate control
     navigate_ctl: entity work.navigate port map(clock=>clock100mhz,reset=>reset,max_x=>max_x,max_y=>max_y,
                                                 pulse_up=>pulse_u,pulse_down=>pulse_d,pulse_right=>pulse_r,pulse_left=>pulse_l,
