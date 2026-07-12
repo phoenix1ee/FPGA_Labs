@@ -6,26 +6,35 @@ use IEEE.NUMERIC_STD.ALL;
 
 -- this is the top level entity
 
-entity lab4_top is
+entity lab5_top is
     Port ( clock100mhz : in std_logic;
-           reset : in std_logic;
            BTNU : in std_logic;
            BTND : in std_logic;
            BTNL : in std_logic;
            BTNR : in std_logic;
+           --switch input
+           SW : in STD_LOGIC_VECTOR (15 downto 0);
            --cathod_led
            SEG7_CATH1 : out std_logic_vector (7 downto 0);
            AN1 : out std_logic_vector (7 downto 0);
+           LED : out std_logic_vector(15 downto 0);
            --vga
            VGA_R : out STD_LOGIC_VECTOR (3 downto 0);
            VGA_G : out STD_LOGIC_VECTOR (3 downto 0);
            VGA_B : out STD_LOGIC_VECTOR (3 downto 0);
            VGA_HS : out std_logic;
-           VGA_VS : out std_logic);
-end lab4_top;
+           VGA_VS : out std_logic;
 
-architecture Behavioral of lab4_top is
+           --acceleromter pin
+            ACL_SCLK: out STD_LOGIC;
+            ACL_CSN : out STD_LOGIC;
+            ACL_MOSI : out STD_LOGIC;
+            ACL_MISO : in STD_LOGIC);
 
+end lab5_top;
+
+architecture Behavioral of lab5_top is
+    signal reset: std_logic;
     signal clk_25mhz:std_logic;
     signal rgb_from_vga:std_logic_vector(11 downto 0);
     signal w: unsigned (10 downto 0);
@@ -41,12 +50,43 @@ architecture Behavioral of lab4_top is
     signal x:unsigned (4 downto 0);
     signal y:unsigned (3 downto 0);
     signal debounce_latency: unsigned (23 downto 0);
+    
+    signal pulse_bu: std_logic;
+    signal pulse_bd: std_logic;
+    signal pulse_bl: std_logic;
+    signal pulse_br: std_logic;
+    
     signal pulse_u: std_logic;
     signal pulse_d: std_logic;
     signal pulse_l: std_logic;
     signal pulse_r: std_logic;
-
+    
+    signal digit7654: std_logic_vector(15 downto 0);
+    signal r0x00: std_logic_vector(7 downto 0);
+    signal r0x01: std_logic_vector(7 downto 0);
+    signal r0x08: std_logic_vector(7 downto 0);
+    signal r0x09: std_logic_vector(7 downto 0);
+    signal r0x0A: std_logic_vector(7 downto 0);
+    
+    signal v_up: unsigned (7 downto 0);
+    signal v_down: unsigned (7 downto 0);
+    signal v_left: unsigned (7 downto 0);
+    signal v_right: unsigned (7 downto 0);
+    
+    signal pulse_au: std_logic;
+    signal pulse_ad: std_logic;
+    signal pulse_al: std_logic;
+    signal pulse_ar: std_logic;
+    
+    signal SCLK1: STD_LOGIC;
+    signal CS1 :  STD_LOGIC;
+    signal MOSI1 :  STD_LOGIC;
+    signal MISO1 :  STD_LOGIC;
+    
+    
 begin
+
+    reset<=SW(0);
     --640 width
     w<="01010000000";
     --480 height
@@ -87,11 +127,28 @@ begin
                                                      green=>rgb_to_vga(7 downto 4),
                                                      blue=>rgb_to_vga(3 downto 0));
     --debounce button
-    bttn_U: entity work.debounce_button port map(clk=>clock100mhz,reset=>reset,pb0=>BTNU,max_count=>debounce_latency,pulseOut=>pulse_u);
-    bttn_D: entity work.debounce_button port map(clk=>clock100mhz,reset=>reset,pb0=>BTND,max_count=>debounce_latency,pulseOut=>pulse_d);
-    bttn_L: entity work.debounce_button port map(clk=>clock100mhz,reset=>reset,pb0=>BTNL,max_count=>debounce_latency,pulseOut=>pulse_l);
-    bttn_R: entity work.debounce_button port map(clk=>clock100mhz,reset=>reset,pb0=>BTNR,max_count=>debounce_latency,pulseOut=>pulse_r);
-    --naviagate control
+    bttn_U: entity work.debounce_button port map(clk=>clock100mhz,reset=>reset,pb0=>BTNU,max_count=>debounce_latency,pulseOut=>pulse_bu);
+    bttn_D: entity work.debounce_button port map(clk=>clock100mhz,reset=>reset,pb0=>BTND,max_count=>debounce_latency,pulseOut=>pulse_bd);
+    bttn_L: entity work.debounce_button port map(clk=>clock100mhz,reset=>reset,pb0=>BTNL,max_count=>debounce_latency,pulseOut=>pulse_bl);
+    bttn_R: entity work.debounce_button port map(clk=>clock100mhz,reset=>reset,pb0=>BTNR,max_count=>debounce_latency,pulseOut=>pulse_br);
+    
+    --accelerometer control
+    v_up<=(unsigned(not r0x08)+ 1) when r0x08(7) = '1' else (others => '0');
+    v_down<=(unsigned(r0x08)) when r0x08(7) = '0' else (others => '0');
+    v_left<=(unsigned(not r0x09)) when r0x09(7) = '0' else (others => '0');
+    v_right<=(unsigned(not r0x09)+ 1) when r0x09(7) = '1' else (others => '0');
+    
+    tilt_front: entity work.accel_control_input port map(clk=>clock100mhz,reset=>reset,value=>v_up,max_count=>debounce_latency,pulseOut=>pulse_au);
+    tilt_back: entity work.accel_control_input port map(clk=>clock100mhz,reset=>reset,value=>v_down,max_count=>debounce_latency,pulseOut=>pulse_ad);
+    tilt_left: entity work.accel_control_input port map(clk=>clock100mhz,reset=>reset,value=>v_left,max_count=>debounce_latency,pulseOut=>pulse_al);
+    tilt_right: entity work.accel_control_input port map(clk=>clock100mhz,reset=>reset,value=>v_right,max_count=>debounce_latency,pulseOut=>pulse_ar);
+    
+    pulse_u<=pulse_bu or pulse_au;
+    pulse_d<=pulse_bd or pulse_ad;
+    pulse_l<=pulse_bl or pulse_al;
+    pulse_r<=pulse_br or pulse_ar;
+    
+--    --naviagate control
     navigate_ctl: entity work.navigate port map(clock=>clock100mhz,reset=>reset,max_x=>max_x,max_y=>max_y,
                                                 pulse_up=>pulse_u,pulse_down=>pulse_d,pulse_right=>pulse_r,pulse_left=>pulse_l,
                                                 x=>x,y=>y);
@@ -101,10 +158,10 @@ begin
     VGA_B<=rgb_from_vga(3 downto 0);
     VGA_HS<=h_sync;
     VGA_VS<=v_sync;
-    
+
     --segment display control, take a 32 bit value and output display and anode signal
     seg7_control : entity work.seg7_controller port map(clock=>clock100mhz,reset=>reset,
-                                                        char(31 downto 16)=>"0000000000000000",
+                                                        char(31 downto 16)=>digit7654,
                                                         char(15 downto 13)=>"000",
                                                         char(12 downto 8)=>std_logic_vector(x),
                                                         char(7 downto 4)=>"0000",
@@ -112,5 +169,28 @@ begin
                                                         seg7_cath=>SEG7_CATH1,AN=>AN1);
 
 
+    register_value_disp : entity work.reg_v_disp_cntl port map(clock=>clock100mhz,reset=>reset,sw=>SW(4 downto 3), 
+                                                                r00=>r0x00,r01=>r0x01,r08=>r0x08,r09=>r0x09,r0A=>r0x0A,disp7654=>digit7654);
+
+	ACEL_ctl : entity accel_spi_rw port map (clk => clock100mhz, reset =>  reset,
+		--Values from Accel
+		DATA_X => r0x08,
+		DATA_Y => r0x09,
+		DATA_Z => r0x0A,
+		ID_AD => r0x00,
+		ID_1D => r0x01,
+		--SPI Signals
+		CSb => CS1,
+		SCLK => SCLK1,
+		MOSI => MOSI1,
+		MISO => MISO1);
+
+    ACL_SCLK<= SCLK1;
+    ACL_CSN<= CS1;
+    ACL_MOSI<=MOSI1;
+    MISO1<= ACL_MISO;
+
+    --assign led status
+    LED <= SW(15 downto 0);
 
 end Behavioral;
