@@ -17,86 +17,184 @@ cold_start:
 ; NOTE: (s# usage):
 ; s0,s1,s2 - Used in delay subroutines
 
-; s3-s4	-	Stores global register for value to display
-; use NAMEREG to define a name, upper8, lower8
-; NAMEREG s5, BTN, buttun input is 8 bit 0000xxxx
-;                                  bit3=>BTND, 2=>BTNU, 1=>BTNL, 0=>BTNR
-; s5	-	Stores the debounced push btn signal
-; s6	-	Debounced register
+; use NAMEREG to define names
+;S6:BTN_de: buttons input for debounce check
+;S5:BTN: Stores the debounced push btn signal, is 8 bit 0000xxxx
+;                                    bit3=>BTND, 2=>BTNU, 1=>BTNL, 0=>BTNR
+;S4:Val_U:upper 8 bit of the display value
+;S3:Val_L:lower 8 bit of the display value
+;S7:input_V:the input value in SW(3 to 0)
+;S8:temp_U: upper 8 bit input/output value for subroutines
+;S9:temp_L:lower 8 bit input/output value for subroutines
+;SA:temp_V: 2nd operand for subroutines
+;SB:temp_A:temporary register for any ops
+;SC:temp_B: temporary register for any ops
+;SD:temp_C: temporary register for any ops
+;SE, no name change, dual use, temporary register for sum of upper 8bit 
+;SF, no name change, dual use, Switch 7 to 0 input / reuse as sum of lower 8bit
+;S0, no name change, dual use, reuse as counter for some routines when not used
 
-	reset: 	LOAD s3, 00								;reset ALU setpoint to 0
-			LOAD s4, 00
-			LOAD s7, 00
-			LOAD s8, 00
-			LOAD s9, 00
-			LOAD sA, 00
-			LOAD sB, 00
-			LOAD sC, 00
-			LOAD sD, 00
+JUMP mainlp
+
+	reset: 	LOAD BTN_de, 00            ;reset ALU setpoint to 0
+			LOAD BTN, 00
+			LOAD Val_U, 00
+			LOAD Val_L, 00
+			LOAD input_V, 00
+			LOAD temp_U, 00
+			LOAD temp_L, 00
+			LOAD temp_V, 00
+			LOAD temp_A, 00
+			LOAD temp_B, 00
+			LOAD temp_C, 00
 			LOAD sE, 00
 			LOAD sF, 00
-			LOAD s5, 00
-			LOAD s6, 00
-			OUTPUT s3, 04							;display reset values
+
+			OUTPUT Val_L, 04							;display reset values lower
+			OUTPUT Val_U, 05							;display reset values
 			;; wait for btn 3 to be depressed to exit reset state
-			INPUT s5, 03
-			TEST s5, 08
+			INPUT BTN, 03
+			TEST BTN, 08
 			JUMP NZ, reset	;stay in reset until 'depressed'
+			RETURN
 		
 	; Main Processing Loop
 	; assign NAMEREG
+	; call reset
 	; Runs debouncer on input push btns
 	; Checks current state of push btns to perform operation
-	mainlp:	
-			NAMEREG s7, input_V  ; change the name of registers
-			NAMEREG s8, temp_U
-			NAMEREG s9, temp_L
-			NAMEREG sA, temp_V
-			NAMEREG sB, temp_A
-			NAMEREG sC, temp_B
-			NAMEREG sD, temp_C			
-			
-			INPUT s5, 03	; store push buttons
+	main:	
+			NAMEREG S6, BTN_de
+			NAMEREG S5, BTN
+			NAMEREG S4 , Val_U
+			NAMEREG S3, Val_L
+			NAMEREG S7, input_V
+			NAMEREG S8, temp_U
+			NAMEREG S9, temp_L
+			NAMEREG SA, temp_V
+			NAMEREG SB, temp_A
+			NAMEREG SC, temp_B
+			NAMEREG SD, temp_C
+
+			; initial reset for once
+	mainreset:
+			CALL reset
+	mainlp:
+			INPUT BTN, 03	; store push buttons
 			CALL del10ms	; delay 10ms
-			INPUT s6, 03	; store push buttons again
-			AND s5, s6		; AND push buttons to only keep signals high if held for 10ms
-			
+			INPUT BTN_de, 03	; store push buttons again
+			AND BTN, BTN_de		; AND push buttons to only keep signals high if held for 10ms
+
+			; Determine if Btn3 was pressed for reset
+			TEST BTN, 08
+			JUMP NZ, mainreset; back to reset when btn3 is pressed, z=0
+
 			; Determine if Btn0 was pressed
-			TEST s5, 01
-			CALL C, checkSW	; Start checking input values
-						
-			; Determine if Btn3 was pressed
-			TEST s5, 08
-			JUMP NZ, reset	; Start Subtraction
+			TEST BTN, 01
+			JUMP Z, mainlp; back to main loop when btn0 is not pressed, z=1
 			
+			; btn0 is pressed
+			INPUT SF, 02      ;read the sliders
+			LOAD input_V, SF  ;copy value
+			AND input_V, 00001111'b   ;filter the input value
+						
+			; Determine if add operation
+			TEST SF, 00010000'b
+			JUMP Z, checksub; sw 4 is 0, check subtraction
+			LOAD temp_U, Val_U
+			LOAD temp_L, Val_L
+			CALL NZ, opadd	; Start add
+			JUMP update
+	checksub:
+			; Determine if subtract operation
+			TEST SF, 00100000'b
+			JUMP Z, checkshift; sw 5 is 0, check shift
+			LOAD temp_U, Val_U
+			LOAD temp_L, Val_L
+			CALL NZ, opsub	; Start subtraction
+			JUMP update
+	checkshift:
+			; Determine if shift operation
+			TEST SF, 01000000'b
+			JUMP Z, checkmul; sw 6 is 0, check mul
+			LOAD temp_U, Val_U
+			LOAD temp_L, Val_L
+			LOAD temp_V, input_V
+			CALL NZ, opshift	; Start shift
+			JUMP update
+	checkmul:
+			; Determine if mul operation
+			TEST SF, 10000000'b
+			JUMP Z, done; sw 7 is 0, no operation 
+			LOAD temp_U, Val_U
+			LOAD temp_L, Val_L
+			LOAD temp_V, input_V
+			CALL NZ, opmul	; Start multiplication
+			JUMP update
+	update:
+			;copy the value for output
+			LOAD Val_L, temp_L
+			LOAD Val_U, temp_U
+	done:
+			INPUT BTN, 03   ;sample the button R again
+			TEST BTN, 01
+			JUMP NZ, done	;stay in done until 'depressed'
 			; Update Displays
-			OUTPUT s3, 04	; Update Display with ALU REG
-			OUTPUT s4, 05
+			OUTPUT Val_L, 04	; Update Display with ALU REG
+			OUTPUT Val_U, 05
 
 			JUMP mainlp
 	
 	;	ADD OPERATION
-	;	Handles Carry
-	checkSW:
-
-	;	ADD OPERATION
-	;	Handles Carry
-	opadd:	ADD 	s3, 01 ; ADD 1 to register
-	
-	addopend:	INPUT s5, 03
-				TEST s5, 02			;check btn0 and only exit this function if button isn't pressed
-				JUMP NZ, addopend	;stay in this routine until btn is depressed
-				RETURN
-	
-	;	SUBTRACT OPERATION
-	;	Basic Subtract
-	opsub:	SUB s3, 01		; subtract 1 from S3
-	
-	subend:	INPUT s5, 03
-			TEST s5, 01			;check btn1 and only exit this function if button isn't pressed
-			JUMP NZ, subend	;stay in this routine until btn is depressed
+	;	Handles Carry and wrap around
+	opadd:	ADD temp_L, input_V
+			ADDCY temp_U, 00
+			ADDCY temp_L, 00
 			RETURN
-	
+		
+	;	SUBTRACT OPERATION
+	;	Handles Carry and wrap around
+	opsub:	SUB temp_L, input_V
+			SUBCY temp_U, 00
+			SUBCY temp_L, 00
+			RETURN
+
+	;	SHIFT OPERATION
+	opshift:LOAD temp_A, 00
+	opshiftloop:
+			COMPARE temp_A, temp_V
+			JUMP Z opshiftdone
+			SL0 temp_L
+			SLA temp_U
+			ADD temp_A, 01
+			JUMP opshiftloop
+	opshiftdone:
+			RETURN
+
+	;	MUL OPERATION
+	opmul:	LOAD SE, 00
+			LOAD SF, 00
+			LOAD temp_B, temp_V ; store the input value
+			LOAD temp_C, 01  ; a bit mask
+			LOAD S0, 00 as counter
+	ShiftAddLoop:
+			COMPARE temp_B, temp_C ; check if input value < bit mask
+			JUMP C, opmuldone
+			TEST temp_B, temp_C  ; check if bit is 1
+			JUMP Z opmulnextb
+			LOAD temp_V, S0
+			LOAD temp_U, Val_U
+			LOAD temp_L, Val_L
+			CALL opshift
+			ADD SF, temp_L
+			ADDCY SE, 00
+			ADD SE, temp_U
+	opmulnextb:ADD S0, 01
+			SL0 temp_C
+			JUMP ShiftAddLoop
+	opmuldone:	LOAD temp_U, SE
+			LOAD temp_L, SF
+			RETURN
 	
 
 	;;HELPER FUNCTIONS FROM TESTPROG (used for delay in top level, added a 10ms delay)
