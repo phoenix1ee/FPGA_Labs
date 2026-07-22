@@ -25,31 +25,46 @@ cold_start:
 ; s6	-	Debounced register
 
 	reset: 	LOAD s3, 00								;reset ALU setpoint to 0
-			OUTPUT s3, 04							;display reset values
+			LOAD s4, 00
+			LOAD s7, 00
+			LOAD s8, 00
+			LOAD s9, 00
+			LOAD sA, 00
+			LOAD sB, 00
+			LOAD sC, 00
+			LOAD sD, 00
+			LOAD sE, 00
+			LOAD sF, 00
 			LOAD s5, 00
 			LOAD s6, 00
-
+			OUTPUT s3, 04							;display reset values
 			;; wait for btn 3 to be depressed to exit reset state
 			INPUT s5, 03
 			TEST s5, 08
 			JUMP NZ, reset	;stay in reset until 'depressed'
 		
 	; Main Processing Loop
+	; assign NAMEREG
 	; Runs debouncer on input push btns
 	; Checks current state of push btns to perform operation
-	mainlp:	INPUT s5, 03	; store push buttons
+	mainlp:	
+			NAMEREG s7, input_V  ; change the name of registers
+			NAMEREG s8, temp_U
+			NAMEREG s9, temp_L
+			NAMEREG sA, temp_V
+			NAMEREG sB, temp_A
+			NAMEREG sC, temp_B
+			NAMEREG sD, temp_C			
+			
+			INPUT s5, 03	; store push buttons
 			CALL del10ms	; delay 10ms
 			INPUT s6, 03	; store push buttons again
 			AND s5, s6		; AND push buttons to only keep signals high if held for 10ms
 			
 			; Determine if Btn0 was pressed
 			TEST s5, 01
-			CALL NZ, opsub	; Start Addition
-			
-			; Determine if Btn1 was pressed
-			TEST s5, 02
-			CALL NZ, opadd	; Start Subtraction
-			
+			CALL C, checkSW	; Start checking input values
+						
 			; Determine if Btn3 was pressed
 			TEST s5, 08
 			JUMP NZ, reset	; Start Subtraction
@@ -60,6 +75,10 @@ cold_start:
 
 			JUMP mainlp
 	
+	;	ADD OPERATION
+	;	Handles Carry
+	checkSW:
+
 	;	ADD OPERATION
 	;	Handles Carry
 	opadd:	ADD 	s3, 01 ; ADD 1 to register
