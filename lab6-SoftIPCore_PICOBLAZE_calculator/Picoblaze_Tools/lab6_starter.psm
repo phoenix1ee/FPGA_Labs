@@ -185,14 +185,16 @@ JUMP mainlp
 			LOAD temp_V, S0
 			LOAD temp_U, Val_U
 			LOAD temp_L, Val_L
-			CALL opshift
+			CALL opshift   ; call the left shift routine
 			ADD SF, temp_L
 			ADDCY SE, 00
 			ADD SE, temp_U
-	opmulnextb:ADD S0, 01
+	opmulnextb:
+			ADD S0, 01
 			SL0 temp_C
 			JUMP ShiftAddLoop
-	opmuldone:	LOAD temp_U, SE
+	opmuldone:	
+			LOAD temp_U, SE
 			LOAD temp_L, SF
 			RETURN
 	
