@@ -1,22 +1,5 @@
 ; calculator implementation with picoblaze softIPcore
 
-; Extra ASM to fix issue with Vivado (see documentation), Skips Address 03
-	JUMP cold_start
-	JUMP cold_start
-	JUMP cold_start
-	JUMP cold_start
-; Cold Start
-cold_start:
-
-; SLIDERS are assigned to PORT 02
-; PUSHBTNs are assigned to PORT 03
-; PUSHBTN(0) is used to add 1
-; PUSHBTN(1) is used to subtract 1
-; PUSHBTN(3) is used to reset design
-
-; NOTE: (s# usage):
-; s0,s1,s2 - Used in delay subroutines
-
 ; use NAMEREG to define names
 ;S6:BTN_de: buttons input for debounce check
 ;S5:BTN: Stores the debounced push btn signal, is 8 bit 0000xxxx
@@ -34,7 +17,36 @@ cold_start:
 ;SF, no name change, dual use, Switch 7 to 0 input / reuse as sum of lower 8bit
 ;S0, no name change, dual use, reuse as counter for some routines when not used
 
-JUMP mainlp
+NAMEREG S6, BTN_de
+NAMEREG S5, BTN
+NAMEREG S4 , Val_U
+NAMEREG S3, Val_L
+NAMEREG S7, input_V
+NAMEREG S8, temp_U
+NAMEREG S9, temp_L
+NAMEREG SA, temp_V
+NAMEREG SB, temp_A
+NAMEREG SC, temp_B
+NAMEREG SD, temp_C
+
+
+; Extra ASM to fix issue with Vivado (see documentation), Skips Address 03
+	JUMP cold_start
+	JUMP cold_start
+	JUMP cold_start
+	JUMP cold_start
+; Cold Start
+cold_start:
+
+; SLIDERS are assigned to PORT 02
+; PUSHBTNs are assigned to PORT 03
+; PUSHBTN(0) is used to add 1
+; PUSHBTN(1) is used to subtract 1
+; PUSHBTN(3) is used to reset design
+
+; NOTE: (s# usage):
+; s0,s1,s2 - Used in delay subroutines
+
 
 	reset: 	LOAD BTN_de, 00            ;reset ALU setpoint to 0
 			LOAD BTN, 00
@@ -54,31 +66,21 @@ JUMP mainlp
 			OUTPUT Val_U, 05							;display reset values
 			;; wait for btn 3 to be depressed to exit reset state
 			INPUT BTN, 03
+			COMPARE BTN, 00
+			JUMP Z, mainlp
 			TEST BTN, 08
 			JUMP NZ, reset	;stay in reset until 'depressed'
-			RETURN
-		
+			JUMP mainlp
+
 	; Main Processing Loop
 	; assign NAMEREG
 	; call reset
 	; Runs debouncer on input push btns
 	; Checks current state of push btns to perform operation
 	main:	
-			NAMEREG S6, BTN_de
-			NAMEREG S5, BTN
-			NAMEREG S4 , Val_U
-			NAMEREG S3, Val_L
-			NAMEREG S7, input_V
-			NAMEREG S8, temp_U
-			NAMEREG S9, temp_L
-			NAMEREG SA, temp_V
-			NAMEREG SB, temp_A
-			NAMEREG SC, temp_B
-			NAMEREG SD, temp_C
-
 			; initial reset for once
 	mainreset:
-			CALL reset
+			JUMP reset
 	mainlp:
 			INPUT BTN, 03	; store push buttons
 			CALL del10ms	; delay 10ms
@@ -131,6 +133,7 @@ JUMP mainlp
 			LOAD temp_V, input_V
 			CALL NZ, opmul	; Start multiplication
 			JUMP update
+
 	update:
 			;copy the value for output
 			LOAD Val_L, temp_L
@@ -151,7 +154,7 @@ JUMP mainlp
 			ADDCY temp_U, 00
 			ADDCY temp_L, 00
 			RETURN
-		
+
 	;	SUBTRACT OPERATION
 	;	Handles Carry and wrap around
 	opsub:	SUB temp_L, input_V
@@ -163,7 +166,7 @@ JUMP mainlp
 	opshift:LOAD temp_A, 00
 	opshiftloop:
 			COMPARE temp_A, temp_V
-			JUMP Z opshiftdone
+			JUMP Z, opshiftdone
 			SL0 temp_L
 			SLA temp_U
 			ADD temp_A, 01
@@ -176,12 +179,12 @@ JUMP mainlp
 			LOAD SF, 00
 			LOAD temp_B, temp_V ; store the input value
 			LOAD temp_C, 01  ; a bit mask
-			LOAD S0, 00 as counter
+			LOAD S0, 00; as counter
 	ShiftAddLoop:
 			COMPARE temp_B, temp_C ; check if input value < bit mask
 			JUMP C, opmuldone
 			TEST temp_B, temp_C  ; check if bit is 1
-			JUMP Z opmulnextb
+			JUMP Z, opmulnextb
 			LOAD temp_V, S0
 			LOAD temp_U, Val_U
 			LOAD temp_L, Val_L
@@ -197,7 +200,6 @@ JUMP mainlp
 			LOAD temp_U, SE
 			LOAD temp_L, SF
 			RETURN
-	
 
 	;;HELPER FUNCTIONS FROM TESTPROG (used for delay in top level, added a 10ms delay)
 	delms:	INPUT s0,07
