@@ -163,7 +163,7 @@ cold_start:
 			RETURN
 
 	;	SHIFT OPERATION
-	opshift:LOAD temp_A, 00
+	opshift:LOAD temp_A, 00   ; load a counter
 	opshiftloop:
 			COMPARE temp_A, temp_V
 			JUMP Z, opshiftdone
@@ -185,16 +185,16 @@ cold_start:
 			JUMP C, opmuldone
 			TEST temp_B, temp_C  ; check if bit is 1
 			JUMP Z, opmulnextb
-			LOAD temp_V, S0
+			LOAD temp_V, S0     ;Load the register with counters, and original values
 			LOAD temp_U, Val_U
 			LOAD temp_L, Val_L
 			CALL opshift   ; call the left shift routine
-			ADD SF, temp_L
+			ADD SF, temp_L      ;add the shifted value to the sum
 			ADDCY SE, 00
 			ADD SE, temp_U
 	opmulnextb:
-			ADD S0, 01
-			SL0 temp_C
+			ADD S0, 01     ;increment counter
+			SL0 temp_C     ;left shift the bit mask
 			JUMP ShiftAddLoop
 	opmuldone:	
 			LOAD temp_U, SE
