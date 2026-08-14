@@ -4,10 +4,10 @@
 -- 
 -- Create Date: 
 -- Design Name: 
--- Module Name: vol_level_shifter
+-- Module Name: frequency_control
 -- Project Name: lab7
 
--- this is the entity to process volume level shift and the display value of volume
+-- this is the entity to handle frequency setting, generate sample pulse and the display value of frequency
 ----------------------------------------------------------------------------------
 
 
@@ -31,21 +31,21 @@ architecture Behavioral of frequency_control is
     signal freq: unsigned (15 downto 0);
     signal pulse1:std_logic;
 begin
--- the display of frequency
+-- the count for sample generation
     with freq_in select
             count <=
-             TO_UNSIGNED(0,27) when "000" ,     
-             TO_UNSIGNED(199999,27) when "001" ,        
-             TO_UNSIGNED(99999,27) when "010" ,     
-             TO_UNSIGNED(66666,27) when "011" ,       
-             TO_UNSIGNED(49999,27) when "100" ,         
-             TO_UNSIGNED(39999,27) when "101" ,    
-             TO_UNSIGNED(33332,27) when "110" ,    
-             TO_UNSIGNED(28570,27) when "111" ,   
-             TO_UNSIGNED(0,27) when others; 
+             TO_UNSIGNED(0,27) srl 8 when "000" ,     
+             TO_UNSIGNED(200000,27) srl 8  when "001" ,        
+             TO_UNSIGNED(100000,27) srl 8  when "010" ,     
+             TO_UNSIGNED(66666,27) srl 8  when "011" ,       
+             TO_UNSIGNED(50000,27) srl 8  when "100" ,         
+             TO_UNSIGNED(40000,27) srl 8  when "101" ,    
+             TO_UNSIGNED(33333,27) srl 8  when "110" ,    
+             TO_UNSIGNED(28571,27) srl 8  when "111" ,   
+             TO_UNSIGNED(0,27) srl 8  when others; 
     
 --use the pulse gen entity
-    sample_gen : entity work.pulse_gen port map(clk=>clk,rst=>rst,max_count=>count,pulseOut=>pulse1);
+    sample_gen : entity work.pulse_gen2 port map(clk=>clk,rst=>rst,max_count=>count,pulseOut=>pulse1);
     
 -- the display of frequency
     with freq_in select
