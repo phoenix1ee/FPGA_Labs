@@ -1,0 +1,198 @@
+              ; calculator implementation with picoblaze softIPcore
+              ; use NAMEREG to define names
+              ;S6:BTN_de: buttons input for debounce check
+              ;S5:BTN: Stores the debounced push btn signal, is 8 bit 0000xxxx
+              ;                                    bit3=>BTND, 2=>BTNU, 1=>BTNL, 0=>BTNR
+              ;S4:Val_U:upper 8 bit of the display value
+              ;S3:Val_L:lower 8 bit of the display value
+              ;S7:input_V:the input value in SW(3 to 0)
+              ;S8:temp_U: upper 8 bit input/output value for subroutines
+              ;S9:temp_L:lower 8 bit input/output value for subroutines
+              ;SA:temp_V: 2nd operand for subroutines
+              ;SB:temp_A:temporary register for any ops
+              ;SC:temp_B: temporary register for any ops
+              ;SD:temp_C: temporary register for any ops
+              ;SE, no name change, dual use, temporary register for sum of upper 8bit
+              ;SF, no name change, dual use, Switch 7 to 0 input / reuse as sum of lower 8bit
+              ;S0, no name change, dual use, reuse as counter for some routines when not used
+              NAMEREG s6, BTN_de
+              NAMEREG s5, BTN
+              NAMEREG s4, Val_U
+              NAMEREG s3, Val_L
+              NAMEREG s7, input_V
+              NAMEREG s8, temp_U
+              NAMEREG s9, temp_L
+              NAMEREG sA, temp_V
+              NAMEREG sB, temp_A
+              NAMEREG sC, temp_B
+              NAMEREG sD, temp_C
+              ; Extra ASM to fix issue with Vivado (see documentation), Skips Address 03
+              JUMP cold_start
+              JUMP cold_start
+              JUMP cold_start
+              JUMP cold_start
+              ; Cold Start
+  cold_start: 
+              ; SLIDERS are assigned to PORT 02
+              ; PUSHBTNs are assigned to PORT 03
+              ; PUSHBTN(0) is used to add 1
+              ; PUSHBTN(1) is used to subtract 1
+              ; PUSHBTN(3) is used to reset design
+              ; NOTE: (s# usage):
+              ; s0,s1,s2 - Used in delay subroutines
+       reset: LOAD BTN_de, 00         ;reset ALU setpoint to 0
+              LOAD BTN, 00
+              LOAD Val_U, 00
+              LOAD Val_L, 00
+              LOAD input_V, 00
+              LOAD temp_U, 00
+              LOAD temp_L, 00
+              LOAD temp_V, 00
+              LOAD temp_A, 00
+              LOAD temp_B, 00
+              LOAD temp_C, 00
+              LOAD sE, 00
+              LOAD sF, 00
+              OUTPUT Val_L, 04        ;display reset values lower
+              OUTPUT Val_U, 05        ;display reset values
+              ;; wait for btn 3 to be depressed to exit reset state
+              INPUT BTN, 03
+              COMPARE BTN, 00
+              JUMP Z, mainlp
+              TEST BTN, 08
+              JUMP NZ, reset          ;stay in reset until 'depressed'
+              JUMP mainlp
+              ; Main Processing Loop
+              ; assign NAMEREG
+              ; call reset
+              ; Runs debouncer on input push btns
+              ; Checks current state of push btns to perform operation
+        main: 
+              ; initial reset for once
+   mainreset: 
+              JUMP reset
+      mainlp: 
+              INPUT BTN, 03           ; store push buttons
+              CALL del10ms            ; delay 10ms
+              INPUT BTN_de, 03        ; store push buttons again
+              AND BTN, BTN_de         ; AND push buttons to only keep signals high if held for 10ms
+              ; Determine if Btn3 was pressed for reset
+              TEST BTN, 08
+              JUMP NZ, mainreset      ; back to reset when btn3 is pressed, z=0
+              ; Determine if Btn0 was pressed
+              TEST BTN, 01
+              JUMP Z, mainlp          ; back to main loop when btn0 is not pressed, z=1
+              ; btn0 is pressed
+              INPUT sF, 02            ;read the sliders
+              LOAD input_V, sF        ;copy value
+              AND input_V, 00001111'b ;filter the input value
+              ; Determine if add operation
+              TEST sF, 00010000'b
+              JUMP Z, checksub        ; sw 4 is 0, check subtraction
+              LOAD temp_U, Val_U
+              LOAD temp_L, Val_L
+              CALL NZ, opadd          ; Start add
+              JUMP update
+    checksub: 
+              ; Determine if subtract operation
+              TEST sF, 00100000'b
+              JUMP Z, checkshift      ; sw 5 is 0, check shift
+              LOAD temp_U, Val_U
+              LOAD temp_L, Val_L
+              CALL NZ, opsub          ; Start subtraction
+              JUMP update
+  checkshift: 
+              ; Determine if shift operation
+              TEST sF, 01000000'b
+              JUMP Z, checkmul        ; sw 6 is 0, check mul
+              LOAD temp_U, Val_U
+              LOAD temp_L, Val_L
+              LOAD temp_V, input_V
+              CALL NZ, opshift        ; Start shift
+              JUMP update
+    checkmul: 
+              ; Determine if mul operation
+              TEST sF, 10000000'b
+              JUMP Z, done            ; sw 7 is 0, no operation
+              LOAD temp_U, Val_U
+              LOAD temp_L, Val_L
+              LOAD temp_V, input_V
+              CALL NZ, opmul          ; Start multiplication
+              JUMP update
+      update: 
+              ;copy the value for output
+              LOAD Val_L, temp_L
+              LOAD Val_U, temp_U
+        done: 
+              INPUT BTN, 03           ;sample the button R again
+              TEST BTN, 01
+              JUMP NZ, done           ;stay in done until 'depressed'
+              ; Update Displays
+              OUTPUT Val_L, 04        ; Update Display with ALU REG
+              OUTPUT Val_U, 05
+              JUMP mainlp
+              ; ADD OPERATION
+              ; Handles Carry and wrap around
+       opadd: ADD temp_L, input_V
+              ADDCY temp_U, 00
+              ADDCY temp_L, 00
+              RETURN 
+              ; SUBTRACT OPERATION
+              ; Handles Carry and wrap around
+       opsub: SUB temp_L, input_V
+              SUBCY temp_U, 00
+              SUBCY temp_L, 00
+              RETURN 
+              ; SHIFT OPERATION
+     opshift: LOAD temp_A, 00         ; load a counter
+ opshiftloop: 
+              COMPARE temp_A, temp_V
+              JUMP Z, opshiftdone
+              SL0 temp_L
+              SLA temp_U
+              ADD temp_A, 01
+              JUMP opshiftloop
+ opshiftdone: 
+              RETURN 
+              ; MUL OPERATION
+       opmul: LOAD sE, 00
+              LOAD sF, 00
+              LOAD temp_B, temp_V     ; store the input value
+              LOAD temp_C, 01         ; a bit mask
+              LOAD s0, 00             ; as counter
+ShiftAddLoop: 
+              COMPARE temp_B, temp_C  ; check if input value < bit mask
+              JUMP C, opmuldone
+              TEST temp_B, temp_C     ; check if bit is 1
+              JUMP Z, opmulnextb
+              LOAD temp_V, s0         ;Load the register with counters, and original values
+              LOAD temp_U, Val_U
+              LOAD temp_L, Val_L
+              CALL opshift            ; call the left shift routine
+              ADD sF, temp_L          ;add the shifted value to the sum
+              ADDCY sE, 00
+              ADD sE, temp_U
+  opmulnextb: 
+              ADD s0, 01              ;increment counter
+              SL0 temp_C              ;left shift the bit mask
+              JUMP ShiftAddLoop
+   opmuldone: 
+              LOAD temp_U, sE
+              LOAD temp_L, sF
+              RETURN 
+              ;;HELPER FUNCTIONS FROM TESTPROG (used for delay in top level, added a 10ms delay)
+       delms: INPUT s0, 07
+     delmslp: INPUT s1, 07
+              COMPARE s0, s1
+              JUMP Z, delmslp
+              RETURN 
+     del10ms: LOAD s2, F5             ;load 245
+   del10mslp: CALL delms
+              ADD s2, 01
+              JUMP NZ, del10mslp
+              RETURN 
+    del250ms: LOAD s2, 05
+  del250mslp: CALL delms
+              ADD s2, 01
+              JUMP NZ, del250mslp
+              RETURN 
